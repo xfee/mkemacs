@@ -226,7 +226,7 @@ fn setup_tray(hwnd: HWND) {
     nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
     nid.uCallbackMessage = WM_TRAYICON;
     nid.hIcon = unsafe { LoadIconW(None, IDI_APPLICATION).unwrap_or_default() };
-    let tip: Vec<u16> = "Emacs Key\0".encode_utf16().collect();
+    let tip: Vec<u16> = "mkemacs\0".encode_utf16().collect();
     let len = tip.len().min(128);
     nid.szTip[..len].copy_from_slice(&tip[..len]);
 
@@ -335,7 +335,7 @@ fn toggle_enabled() {
     let hwnd = unsafe { TRAY_HWND };
 
     // 更新托盘提示文字
-    let tip_str = if now { "Emacs Key\0" } else { "Emacs Key (Disabled)\0" };
+    let tip_str = if now { "mkemacs\0" } else { "mkemacs (Disabled)\0" };
     let mut nid: NOTIFYICONDATAW = unsafe { mem::zeroed() };
     nid.cbSize = mem::size_of::<NOTIFYICONDATAW>() as u32;
     nid.hWnd = hwnd;
@@ -348,9 +348,9 @@ fn toggle_enabled() {
 
     // 通知
     if now {
-        show_balloon("Emacs Key", "Emacs 快捷键已启用");
+        show_balloon("mkemacs", "mkemacs 快捷键已启用");
     } else {
-        show_balloon("Emacs Key", "Emacs 快捷键已停用");
+        show_balloon("mkemacs", "mkemacs 快捷键已停用");
     }
 }
 
@@ -418,7 +418,7 @@ fn main() {
     let h_instance: HINSTANCE = HINSTANCE(h_instance.0);
 
     // 注册窗口类
-    let class_name = HSTRING::from("EmacsKeyTrayClass");
+    let class_name = HSTRING::from("mkemacsTrayClass");
     let wc = WNDCLASSEXW {
         cbSize: mem::size_of::<WNDCLASSEXW>() as u32,
         lpfnWndProc: Some(wndproc),
@@ -460,7 +460,7 @@ fn main() {
     unsafe { HOOK = hook.0 };
 
     // 启动通知
-    show_balloon("Emacs Key", "Emacs 快捷键已启用");
+    show_balloon("mkemacs", "mkemacs 快捷键已启用");
 
     // 消息循环
     let mut msg: MSG = unsafe { mem::zeroed() };

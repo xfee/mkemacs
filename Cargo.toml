@@ -1,10 +1,10 @@
 [package]
-name = "emacs-key"
+name = "mkemacs"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "emacs-key"
+name = "mkemacs"
 path = "src/main.rs"
 
 [dependencies]

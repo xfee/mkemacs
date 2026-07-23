@@ -23,14 +23,14 @@
 ## 使用
 
 1. 用 [SharpKeys](https://sharpkeys.net/) 将 CapsLock 映射为 F9（修改注册表，需注销重新登录）
-2. 下载 [emacs-key.exe](https://github.com/xfee/mkemacs/releases) 并运行
+2. 下载 [mkemacs.exe](https://github.com/xfee/mkemacs/releases) 并运行
 3. 托盘图标右键可禁用/启用、查看使用说明
 
 ## 构建
 
 ```bash
 cargo build --release
-# 输出: target/release/emacs-key.exe
+# 输出: target/release/mkemacs.exe
 ```
 
 ## 技术
