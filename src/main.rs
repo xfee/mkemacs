@@ -310,7 +310,23 @@ fn setup_tray(hwnd: HWND) {
     nid.uID = 1;
     nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
     nid.uCallbackMessage = WM_TRAYICON;
-    nid.hIcon = unsafe { LoadIconW(None, IDI_APPLICATION).unwrap_or_default() };
+    // 从 exe 嵌入资源中加载图标（winres 已嵌入 .ico）
+    let h_inst = unsafe { GetModuleHandleW(None).unwrap_or_default() };
+    nid.hIcon = {
+        let h = unsafe {
+            LoadImageW(
+                h_inst,
+                PCWSTR(1usize as *const _),   // 资源 ID = 1（主图标）
+                IMAGE_ICON,
+                32, 32,                         // 托盘推荐 32x32
+                LR_DEFAULTCOLOR,
+            )
+        };
+        match h {
+            Ok(handle) => HICON(handle.0),
+            _ => unsafe { LoadIconW(None, IDI_APPLICATION).unwrap_or_default() },
+        }
+    };
     let tip: Vec<u16> = "mkemacs\0".encode_utf16().collect();
     let len = tip.len().min(128);
     nid.szTip[..len].copy_from_slice(&tip[..len]);

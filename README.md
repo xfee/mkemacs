@@ -8,16 +8,16 @@
 
 ## 快捷键
 
-| 组合 | 等价操作 |
-|------|---------|
-| `CapsLock + A` | Home（行首） |
-| `CapsLock + E` | End（行尾） |
-| `CapsLock + B` | Left（左移一个字符） |
-| `CapsLock + F` | Right（右移一个字符） |
-| `CapsLock + P` | Up（上移一行） |
-| `CapsLock + N` | Down（下移一行） |
-| `CapsLock + D` | Delete（删除光标后字符） |
-| `CapsLock + H` | Backspace（删除光标前字符） |
+| 组合             | 等价操作                     |
+| -------------- | ------------------------ |
+| `CapsLock + A` | Home（行首）                 |
+| `CapsLock + E` | End（行尾）                  |
+| `CapsLock + B` | Left（左移一个字符）             |
+| `CapsLock + F` | Right（右移一个字符）            |
+| `CapsLock + P` | Up（上移一行）                 |
+| `CapsLock + N` | Down（下移一行）               |
+| `CapsLock + D` | Delete（删除光标后字符）          |
+| `CapsLock + H` | Backspace（删除光标前字符）       |
 | `CapsLock + K` | 删除至行尾（Shift+End, Delete） |
 
 ## 使用
@@ -26,11 +26,18 @@
 2. 下载 [mkemacs.exe](https://github.com/xfee/mkemacs/releases) 并运行
 3. 托盘图标右键可禁用/启用、查看使用说明
 
+<br />
+
+## 运行
+
+```bash
+cargo run
+```
+
 ## 构建
 
 ```bash
 cargo build --release
-# 输出: target/release/mkemacs.exe
 ```
 
 ## 技术
@@ -38,3 +45,4 @@ cargo build --release
 - Windows `WH_KEYBOARD_LL` 低级键盘钩子
 - 独立线程 `SendInput` 防递归
 - 无 GC、无运行时依赖，单文件 Rust
+
