@@ -16,7 +16,7 @@ use windows::Win32::UI::WindowsAndMessaging::*;
 
 // ── 配置（直接改这里就行）────────────────────────────────────
 const HYPER_KEY: u32 = 0x78; // F9（注册表 CapsLock → F9）
-const VERSION: &str = "v0.1.0";
+const VERSION: &str = "v0.1.1";
 const GITHUB_URL: &str = "https://github.com/xfee/mkemacs";
 const RELEASES_URL: &str = "https://github.com/xfee/mkemacs/releases";
 const SHARPKEYS_URL: &str = "https://sharpkeys.net/";
