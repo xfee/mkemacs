@@ -10,15 +10,15 @@
 
 | 组合 | 等价操作 |
 |------|---------|
-| `F9 + A` | Home（行首） |
-| `F9 + E` | End（行尾） |
-| `F9 + B` | Left（左移一个字符） |
-| `F9 + F` | Right（右移一个字符） |
-| `F9 + P` | Up（上移一行） |
-| `F9 + N` | Down（下移一行） |
-| `F9 + D` | Delete（删除光标后字符） |
-| `F9 + H` | Backspace（删除光标前字符） |
-| `F9 + K` | 删除至行尾（Shift+End, Delete） |
+| `CapsLock + A` | Home（行首） |
+| `CapsLock + E` | End（行尾） |
+| `CapsLock + B` | Left（左移一个字符） |
+| `CapsLock + F` | Right（右移一个字符） |
+| `CapsLock + P` | Up（上移一行） |
+| `CapsLock + N` | Down（下移一行） |
+| `CapsLock + D` | Delete（删除光标后字符） |
+| `CapsLock + H` | Backspace（删除光标前字符） |
+| `CapsLock + K` | 删除至行尾（Shift+End, Delete） |
 
 ## 使用
 
