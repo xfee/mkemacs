@@ -10,6 +10,7 @@ use std::thread;
 use windows::core::{HSTRING, PCWSTR};
 use windows::Win32::Foundation::*;
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+use windows::Win32::System::Registry::*;
 use windows::Win32::UI::Input::KeyboardAndMouse::*;
 use windows::Win32::UI::Shell::*;
 use windows::Win32::UI::WindowsAndMessaging::*;
@@ -44,11 +45,13 @@ const IDM_ENABLE: usize = 1001;
 const IDM_UPDATE: usize = 1002;
 const IDM_HOMEPAGE: usize = 1003;
 const IDM_SHARPKEYS: usize = 1004;
-const IDM_EXIT: usize = 1005;
+const IDM_AUTOSTART: usize = 1005;
+const IDM_EXIT: usize = 1006;
 
 // 全局状态
 static HYPER_DOWN: AtomicBool = AtomicBool::new(false);
 static ENABLED: AtomicBool = AtomicBool::new(true);
+static AUTOSTART: AtomicBool = AtomicBool::new(false);
 static CONSUMED_VK: AtomicU16 = AtomicU16::new(0);
 static mut HOOK: *mut c_void = std::ptr::null_mut();
 static mut TRAY_HWND: HWND = HWND(std::ptr::null_mut());
@@ -216,6 +219,88 @@ fn spawn_sender() -> Sender<Vec<INPUT>> {
     tx
 }
 
+// ── 开机启动（注册表 Run 键）────────────────────────────────
+
+fn exe_path() -> String {
+    std::env::current_exe()
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_default()
+}
+
+fn is_in_autostart() -> bool {
+    let path = exe_path();
+    let path_wide: Vec<u16> = path.encode_utf16().collect();
+    unsafe {
+        let mut hkey = HKEY::default();
+        let rc = RegOpenKeyExW(
+            HKEY_CURRENT_USER,
+            windows::core::w!("Software\\Microsoft\\Windows\\CurrentVersion\\Run"),
+            0,
+            KEY_READ,
+            &mut hkey,
+        );
+        if rc != ERROR_SUCCESS {
+            return false;
+        }
+        let mut data_type = REG_VALUE_TYPE(0);
+        let mut data = [0u16; 512];
+        let mut data_len = (data.len() * 2) as u32;
+        let name_wide: Vec<u16> = "mkemacs\0".encode_utf16().collect();
+        let rc2 = RegQueryValueExW(
+            hkey,
+            PCWSTR(name_wide.as_ptr()),
+            None,
+            Some(&mut data_type),
+            Some(data.as_mut_ptr() as *mut u8),
+            Some(&mut data_len),
+        );
+        let _ = RegCloseKey(hkey);
+        if rc2 != ERROR_SUCCESS || data_type != REG_SZ {
+            return false;
+        }
+        let existing: Vec<u16> = data[..(data_len as usize / 2)]
+            .iter()
+            .copied()
+            .take_while(|&c| c != 0)
+            .collect();
+        existing == path_wide
+    }
+}
+
+fn set_autostart(enable: bool) {
+    let path = exe_path();
+    unsafe {
+        let mut hkey = HKEY::default();
+        let rc = RegOpenKeyExW(
+            HKEY_CURRENT_USER,
+            windows::core::w!("Software\\Microsoft\\Windows\\CurrentVersion\\Run"),
+            0,
+            KEY_SET_VALUE,
+            &mut hkey,
+        );
+        if rc != ERROR_SUCCESS {
+            return;
+        }
+        if enable {
+            let path_bytes: Vec<u8> = path
+                .encode_utf16()
+                .flat_map(|c| c.to_le_bytes())
+                .chain([0, 0])
+                .collect();
+            let _ = RegSetValueExW(
+                hkey,
+                windows::core::w!("mkemacs"),
+                0,
+                REG_SZ,
+                Some(&path_bytes),
+            );
+        } else {
+            let _ = RegDeleteValueW(hkey, windows::core::w!("mkemacs"));
+        }
+        let _ = RegCloseKey(hkey);
+    }
+}
+
 // ── 系统托盘 ──────────────────────────────────────────────────
 
 fn setup_tray(hwnd: HWND) {
@@ -291,6 +376,25 @@ fn show_tray_menu(hwnd: HWND) {
             "开启\0".encode_utf16().collect()
         };
         let _ = AppendMenuW(menu, MF_STRING, IDM_ENABLE, PCWSTR(label.as_ptr()));
+
+        // 开机启动（勾选表示已启用）
+        let autostart_on = AUTOSTART.load(Ordering::Relaxed);
+        let auto_label: Vec<u16> = if autostart_on {
+            "开机启动 ✓\0".encode_utf16().collect()
+        } else {
+            "开机启动\0".encode_utf16().collect()
+        };
+        let mut auto_flags = MF_STRING;
+        if autostart_on {
+            auto_flags |= MF_CHECKED;
+        }
+        let _ = AppendMenuW(
+            menu,
+            auto_flags,
+            IDM_AUTOSTART,
+            PCWSTR(auto_label.as_ptr()),
+        );
+
         let _ = AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null());
 
         // 检查更新（版本号用 tab 右对齐）
@@ -354,6 +458,17 @@ fn toggle_enabled() {
     }
 }
 
+fn toggle_autostart() {
+    let was = AUTOSTART.fetch_xor(true, Ordering::SeqCst);
+    let now = !was;
+    set_autostart(now);
+    if now {
+        show_balloon("mkemacs", "已设为开机启动");
+    } else {
+        show_balloon("mkemacs", "已取消开机启动");
+    }
+}
+
 // ── 隐藏窗口过程 ──────────────────────────────────────────────
 
 fn open_url(url: &str) {
@@ -389,6 +504,8 @@ extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM)
                 open_url(GITHUB_URL);
             } else if wparam.0 == IDM_SHARPKEYS {
                 open_url(SHARPKEYS_URL);
+            } else if wparam.0 == IDM_AUTOSTART {
+                toggle_autostart();
             } else if wparam.0 == IDM_EXIT {
                 cleanup_tray(hwnd);
                 unsafe { PostQuitMessage(0) };
@@ -450,6 +567,10 @@ fn main() {
     // 托盘图标
     setup_tray(hwnd);
     unsafe { TRAY_HWND = hwnd };
+
+    // 同步开机启动状态
+    let is_auto = is_in_autostart();
+    AUTOSTART.store(is_auto, Ordering::Relaxed);
 
     // 启动 SendInput 线程
     *SENDER.lock().unwrap() = Some(spawn_sender());
