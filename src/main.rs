@@ -17,7 +17,9 @@ use windows::Win32::UI::WindowsAndMessaging::*;
 // ── 配置（直接改这里就行）────────────────────────────────────
 const HYPER_KEY: u32 = 0x78; // F9（注册表 CapsLock → F9）
 const VERSION: &str = "v0.1.0";
+const GITHUB_URL: &str = "https://github.com/xfee/mkemacs";
 const RELEASES_URL: &str = "https://github.com/xfee/mkemacs/releases";
+const SHARPKEYS_URL: &str = "https://sharpkeys.net/";
 // ────────────────────────────────────────────────────────────
 
 // 快捷键说明（lookup() 和托盘菜单共用）
@@ -39,8 +41,10 @@ const MAGIC_EXTRA: usize = 0x454D4143534B4559; // "EMACSKEY"
 // 窗口消息 ID
 const WM_TRAYICON: u32 = WM_USER + 1;
 const IDM_ENABLE: usize = 1001;
-const IDM_EXIT: usize = 1002;
-const IDM_UPDATE: usize = 1003;
+const IDM_UPDATE: usize = 1002;
+const IDM_HOMEPAGE: usize = 1003;
+const IDM_SHARPKEYS: usize = 1004;
+const IDM_EXIT: usize = 1005;
 
 // 全局状态
 static HYPER_DOWN: AtomicBool = AtomicBool::new(false);
@@ -258,34 +262,19 @@ fn show_tray_menu(hwnd: HWND) {
         // 标题
         let title: Vec<u16> = "mkemacs\0".encode_utf16().collect();
         let _ = AppendMenuW(menu, MF_STRING | MF_GRAYED, 0, PCWSTR(title.as_ptr()));
-        // 版本号
-        let ver: Vec<u16> = VERSION.encode_utf16().chain(std::iter::once(0)).collect();
-        let _ = AppendMenuW(menu, MF_STRING | MF_GRAYED, 0, PCWSTR(ver.as_ptr()));
         let _ = AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null());
 
         // "使用说明" 二级菜单
         let help_menu = CreatePopupMenu().unwrap_or_default();
-        // 第一行：提示需要 SharpKeys 映射
-        let hint: Vec<u16> = "强烈建议使用 SharpKeys 将 CapsLock 映射为 F9\0"
+        let hint: Vec<u16> = "需要 SharpKeys 将 CapsLock 映射为 F9\0"
             .encode_utf16()
             .collect();
         let _ = AppendMenuW(help_menu, MF_STRING | MF_GRAYED, 0, PCWSTR(hint.as_ptr()));
         let _ = AppendMenuW(help_menu, MF_SEPARATOR, 0, PCWSTR::null());
-        // 快捷键列表
         for (key, desc) in MAPPINGS {
             let item: Vec<u16> = format!("{key}  →  {desc}\0").encode_utf16().collect();
             let _ = AppendMenuW(help_menu, MF_STRING | MF_GRAYED, 0, PCWSTR(item.as_ptr()));
         }
-        // SharpKeys 主页
-        let _ = AppendMenuW(help_menu, MF_SEPARATOR, 0, PCWSTR::null());
-        let sharpkeys_url: Vec<u16> =
-            "https://sharpkeys.net/\0".encode_utf16().collect();
-        let _ = AppendMenuW(
-            help_menu,
-            MF_STRING | MF_GRAYED,
-            0,
-            PCWSTR(sharpkeys_url.as_ptr()),
-        );
         let help_label: Vec<u16> = "使用说明\0".encode_utf16().collect();
         let _ = AppendMenuW(
             menu,
@@ -293,42 +282,48 @@ fn show_tray_menu(hwnd: HWND) {
             help_menu.0 as usize,
             PCWSTR(help_label.as_ptr()),
         );
-
-        // 分隔线
         let _ = AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null());
 
+        // 禁用 / 开启
         let label: Vec<u16> = if ENABLED.load(Ordering::Relaxed) {
-            "Disable\0".encode_utf16().collect()
+            "禁用\0".encode_utf16().collect()
         } else {
-            "Enable\0".encode_utf16().collect()
+            "开启\0".encode_utf16().collect()
         };
-        let exit_text: Vec<u16> = "Exit\0".encode_utf16().collect();
-
         let _ = AppendMenuW(menu, MF_STRING, IDM_ENABLE, PCWSTR(label.as_ptr()));
-        let _ = AppendMenuW(menu, MF_STRING, IDM_EXIT, PCWSTR(exit_text.as_ptr()));
-
-        // 检查更新
         let _ = AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null());
-        let update_label: Vec<u16> = "检查更新\0".encode_utf16().collect();
+
+        // 检查更新（版本号用 tab 右对齐）
+        let update_label: Vec<u16> = format!("检查更新\t{VERSION}\0")
+            .encode_utf16()
+            .collect();
         let _ = AppendMenuW(
             menu,
             MF_STRING,
             IDM_UPDATE,
             PCWSTR(update_label.as_ptr()),
         );
+        let _ = AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null());
 
         // 项目主页
+        let homepage: Vec<u16> = "项目主页\0".encode_utf16().collect();
+        let _ = AppendMenuW(menu, MF_STRING, IDM_HOMEPAGE, PCWSTR(homepage.as_ptr()));
+
+        // SharpKeys 主页
+        let sharpkeys: Vec<u16> = "SharpKeys 主页\0".encode_utf16().collect();
+        let _ = AppendMenuW(menu, MF_STRING, IDM_SHARPKEYS, PCWSTR(sharpkeys.as_ptr()));
+
         let _ = AppendMenuW(menu, MF_SEPARATOR, 0, PCWSTR::null());
-        let homepage: Vec<u16> =
-            "https://github.com/xfee/mkemacs\0".encode_utf16().collect();
-        let _ = AppendMenuW(menu, MF_STRING | MF_GRAYED, 0, PCWSTR(homepage.as_ptr()));
+
+        // 退出
+        let exit_text: Vec<u16> = "退出\0".encode_utf16().collect();
+        let _ = AppendMenuW(menu, MF_STRING, IDM_EXIT, PCWSTR(exit_text.as_ptr()));
 
         let _ = SetForegroundWindow(hwnd);
         let mut pt = POINT::default();
         let _ = GetCursorPos(&mut pt);
         let _ = TrackPopupMenu(menu, TPM_BOTTOMALIGN | TPM_LEFTALIGN, pt.x, pt.y, 0, hwnd, None);
         let _ = DestroyMenu(menu);
-        // help_menu is destroyed automatically as a child of menu
     }
 }
 
@@ -388,11 +383,15 @@ extern "system" fn wndproc(hwnd: HWND, msg: u32, wparam: WPARAM, lparam: LPARAM)
         WM_COMMAND => {
             if wparam.0 == IDM_ENABLE {
                 toggle_enabled();
+            } else if wparam.0 == IDM_UPDATE {
+                open_url(RELEASES_URL);
+            } else if wparam.0 == IDM_HOMEPAGE {
+                open_url(GITHUB_URL);
+            } else if wparam.0 == IDM_SHARPKEYS {
+                open_url(SHARPKEYS_URL);
             } else if wparam.0 == IDM_EXIT {
                 cleanup_tray(hwnd);
                 unsafe { PostQuitMessage(0) };
-            } else if wparam.0 == IDM_UPDATE {
-                open_url(RELEASES_URL);
             }
             LRESULT(0)
         }
