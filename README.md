@@ -1,6 +1,6 @@
 # mkemacs
 
-> Emacs-style keyboard shortcuts for Windows, powered by Rust + WH_KEYBOARD_LL
+秒开Emacs 通过键盘钩子实现Emacs 风格的快捷键，在整个Windows系统全局可用
 
 ## 原理
 
